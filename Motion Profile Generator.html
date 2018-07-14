@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Motion Profile Generator</title>
+	</head>
+	
+	<body>
+		<div class="flexbox">
+			<canvas id="canvas" width="706px" height="564px"></canvas>
+		</div>
+		<div id="inputDiv" class="flexbox">
+			<div class="flexbox">
+				<span>
+					Robot Width:
+					<input id="robotWidth" class="textInput" type="text" placeholder="width"></input>
+					inches
+				</span>
+				
+				<span>
+					Wheel Radius:
+					<input id="wheelRadius" class="textInput" type="text" placeholder="radius"></input>
+					inches
+				</span>
+				
+				<span>Starting Position:</span>
+				<select id="startingPosition">
+					<option>Red Top</option>
+					<option>Red Bottom</option>
+					<option>Blue Top</option>
+					<option>Blue Bottom</option>
+				</select>
+			</div>
+			<div id="addCheckpoint">
+				<div class="flexbox">
+					<span>Checkpoints:</span>
+				</div>
+				
+				<div class="flexbox">
+					<div id="checkpointCoordsDiv">
+						<table>
+							<tbody>
+								<tr>
+									<th>x</th>
+									<th>y</th>
+								</tr>
+							<tbody>
+						</table>
+					</div>
+				</div>
+				
+				<div class="flexbox">
+					<input id="add" type="button" class="button" value="Add"></input>
+				</div>
+			</div>
+		</div>
+		
+		<style>
+			body
+			{
+				overflow-y: auto;
+			}
+			
+			#canvas 
+			{
+				background-image: url("VexTurningPoint.png");
+				background-repeat: no-repeat;
+				width: 706px;
+				height: 564px;
+				image-rendering: crisp-edges;
+			}
+			
+			
+			.flexbox
+			{
+				border: none;
+				position: relative;
+				display: flex;
+				flex-flow: row wrap;
+				align-items: flex-start;
+				justify-content: center;
+				space-between: space-around;
+				font-family: Courier;
+				font-size: 12pt;
+			}
+			
+			.flexbox > *
+			{
+				flex: 0 0 auto;
+			}
+			
+			#inputDiv > div
+			{
+				border-top: 2px solid black;
+				width: 353px;
+				height: calc(100vh - 580px);
+			}
+			
+			#inputDiv > .flexbox:nth-child(1)
+			{
+				border-right: 2px solid black;
+			}
+			
+			#inputDiv > .flexbox > span
+			{
+				margin-top: 2px;
+			}
+			
+			#checkpointCoordsDiv
+			{
+				background-color: #eeeeee;
+				width: 161px;
+				max-height: calc(100vh - 630px);
+				border: 2px solid #dddddd;
+				overflow-y: scroll;
+				overflow-x: hidden;
+			}
+
+			#checkpointCoordsDiv table
+			{
+				display: inline-table;
+				margin-top: -1px;
+				text-align: center;
+				border-collapse: collapse;
+			}
+			
+			#checkpointCoordsDiv th, #checkpointCoordsDiv td, #checkpointCoordsDiv input
+			{
+				width: 60px;
+			}
+			
+			#checkpointCoordsDiv th, #checkpointCoordsDiv td
+			{
+				border-right: 3px solid #dddddd;
+			}
+			
+			#checkpointCoordsDiv tr:nth-child(even)
+			{
+				background-color: #e5e5e5;
+			}
+			
+			#checkpointCoordsDiv input
+			{
+				border: none;
+				outline: none;
+				background: none;
+				text-align: center;
+			}
+			
+			.delete
+			{
+				height: 40%;
+			}
+			
+			
+			
+			.button
+			{
+				display: inline-block;
+				border: none;
+				background-color: #f2f2f2;
+				text-align: center;
+				font-family: Courier;
+				font-size: 12pt;
+				height: 20.2px;
+				outline: none;
+				-webkit-transition: .2s;
+				transition: background-color .2s;
+			}
+			
+			.button:hover
+			{
+				background-color: #e3e3e3;
+			}
+			
+			.button:active
+			{
+				
+			}
+			
+			#add
+			{
+				display: block;
+				width: 165px;
+				margin-left: 40px;
+				margin-right: 40px;
+				border: 2px solid #dddddd;
+				margin-top: -4px;
+				vertical-align: top;
+			}
+			
+			.textInput
+			{
+				display: inline-block;
+				border: none;
+				background-color: #f2f2f2;
+				text-align: center;
+				font-family: Courier;
+				font-size: 12pt;
+				height: 20.2px;
+				outline: none;
+				-webkit-transition: .2s;
+				transition: background .2s;
+			}
+			
+			.textInput::-webkit-input-placeholder
+			{
+				color: #777777;
+				-webkit-transition: .2s;
+				transition: color .2s;
+			}
+			
+			.textInput:hover::-webkit-input-placeholder, .textInput:focus::-webkit-input-placeholder 
+			{
+				color: #f6f6f6;
+			}
+			
+			input[type="number"]::-webkit-outer-spin-button,
+			input[type="number"]::-webkit-inner-spin-button
+			{
+				-webkit-appearance: none;
+				margin: 0;
+			}
+			
+			.coord
+			{
+				font-family: Courier;
+				font-size: 12pt;
+			}
+			
+			#robotWidth, #wheelRadius
+			{
+				width: 60px;
+			}
+			
+			select
+			{
+				font-family: inherit;
+				font-size: inherit;
+				margin-top: 0.5px;
+				margin-left: 10px;
+				border: none;
+				background-color: #f2f2f2;
+				outline: none;
+			}
+			
+			select:hover
+			{
+				background-color: #e3e3e3;
+			}
+		</style>
+		
+		<script>
+			var canvas = document.getElementById("canvas");
+			var ctx = canvas.getContext("2d");
+			
+			var maxSpeed = 127;
+			var robotWidth = 10;
+			var wheelRadius = 4;
+			
+			var inputArray = [];
+			var checkpointCoords = [];
+			var fieldRect = {x: 110, y: 60, width: 484, height: 481};
+			
+			var startingPosition = document.getElementById("startingPosition");
+			var robotWidthInput = document.getElementById("robotWidth");
+			var wheelRadiusInput = document.getElementById("wheelRadius");
+			
+			var add = document.getElementById("add");
+			add.onclick = addCheckpointInputs;
+			
+			function addCheckpointInputs(x, y)
+			{
+				var checkpointCoordsDiv = document.getElementById("checkpointCoordsDiv");
+				var tbody = checkpointCoordsDiv.children[0].children[0];
+				var tr = document.createElement("tr");
+				var tds = [document.createElement("td"), document.createElement("td"), document.createElement("td")];
+				var inputs = [document.createElement("input"), document.createElement("input")];
+				var img = document.createElement("img");
+				
+				inputs[0].type = "number";
+				inputs[1].type = "number";
+				inputs[0].className = "coord";
+				inputs[1].className = "coord";
+				inputs[0].addEventListener("input", updateCheckpointCoords, false);
+				inputs[1].addEventListener("input", updateCheckpointCoords, false);
+				inputs[0].index = checkpointCoords.length;
+				inputs[1].index = checkpointCoords.length + 1;
+				checkpointCoords[inputs[0].index] = x;
+				checkpointCoords[inputs[1].index] = y;
+				inputArray.push(inputs[0]);
+				inputArray.push(inputs[1]);
+				inputs[0].value = x;
+				inputs[1].value = y;
+				inputs[0].updateCheckpointCoords = updateCheckpointCoords;
+				inputs[1].updateCheckpointCoords = updateCheckpointCoords;
+				inputs[0].updateCheckpointCoords();
+				inputs[1].updateCheckpointCoords
+				
+				tds[2].index = inputs[0].index;
+				tds[2].addEventListener("click", deleteCheckpoint, false);
+				
+				img.src = "close.png";
+				img.className = "delete";
+				
+				tds[0].appendChild(inputs[0]);
+				tds[1].appendChild(inputs[1]);
+				tds[2].appendChild(img);
+				tr.appendChild(tds[0]);
+				tr.appendChild(tds[1]);
+				tr.appendChild(tds[2]);
+				tbody.appendChild(tr);
+				
+				checkpointCoordsDiv.scrollTop = checkpointCoordsDiv.scrollHeight;
+			}
+			
+			function getSpeed(turnRadius)
+			{
+				return 127 * (1 - robotWidth / (turnRadius + (robotWidth / 2)));
+			}
+			
+			function updateCheckpointCoords()
+			{
+				checkpointCoords[this.index] = this.value === "" ? undefined : Number(this.value);
+				updateCanvas();
+			}
+			
+			function updateCanvas()
+			{
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				//ctx.imageSmoothingEnabled = true;
+					
+				for (var i = 0; i < checkpointCoords.length / 2; i++) {
+					if (checkpointCoords[i * 2] !== undefined && checkpointCoords[i * 2 + 1] !== undefined) {
+						ctx.fillStyle = "rgb(0, 255, 0)";
+						ctx.beginPath();
+						ctx.arc(checkpointCoords[i * 2] + fieldRect.x, checkpointCoords[i * 2 + 1] + fieldRect.y, 5, 0, 2 * Math.PI);
+						ctx.closePath();
+						ctx.fill();
+					}
+				}
+			}
+			
+			canvas.addEventListener("click", addCheckpoint, false);
+			
+			function addCheckpoint(e)
+			{
+				var x = e.clientX - canvas.getBoundingClientRect().x  - fieldRect.x;
+				var y = e.clientY - canvas.getBoundingClientRect().y - fieldRect.y;
+				
+				if (x >= 0 && x <= fieldRect.width && y >= 0 && y <= fieldRect.height)
+					addCheckpointInputs(Math.round(x * 10) / 10, Math.round(y * 10) / 10);
+			}
+			
+			function setCheckpoint(index, x, y)
+			{
+				inputArray[index].value = x;
+				inputArray[index + 1].value = y;
+				checkpointCoords[index] = x;
+				checkpointCoords[index + 1] = y;
+				updateCanvas();
+			}
+			
+			function deleteCheckpoint()
+			{
+				var tr = inputArray[this.index].parentNode.parentNode;
+				
+				for (var i = this.index; i < inputArray.length; i++) {
+					inputArray[i].index -= 2;
+				}
+				
+				inputArray.splice(this.index, 2);
+				checkpointCoords.splice(this.index, 2);
+				tr.parentNode.removeChild(tr);
+				this.parentNode.removeChild(this);
+			}
+			
+			addCheckpointInputs(41, 200)
+			
+			startingPosition.addEventListener("input", function()
+			{
+				var x;
+				var y;
+				
+				switch (this.selectedIndex) {
+					case 0:
+						x = 41;
+						y = 200;
+						break;
+					case 1:
+						x = 41;
+						y = 362;
+						break;
+					case 2:
+						x = 446;
+						y = 200;
+						break;
+					case 3:
+						x = 446;
+						y = 362;
+						break;
+				}
+				
+				if (!inputArray.length)
+					addCheckpointInputs(x, y);
+				else
+					setCheckpoint(0, x, y);
+			}, false);
+			
+			robotWidthInput.addEventListener("input", function()
+			{
+				robotWidth = Number(this.value);
+			}, false);
+			
+			wheelRadiusInput.addEventListener("input", function()
+			{
+				wheelRadius = Number(this.value);
+			}, false);
+			
+			Math.pixelsToInches = function(pixels) 
+			{
+				return pixels * 144 / fieldRect.width;
+			}
+			
+			Math.inchesToPixels = function(inches) 
+			{
+				return inches * fieldRect.width / 144;
+			}
+			
+			Math.inchesToEncoderTicks = function(inches)
+			{
+				return inches * 3600 / wheelRadius;
+			}
+			
+			Math.encoderTicksToInches = function(encoderTicks)
+			{
+				return encoderTicks * wheelRadius / 3600;
+			}
+			
+			Math.pixelsToEncoderTicks = function(pixels)
+			{
+				return Math.inchesToEncoderTicks(Math.pixelsToInches(pixels));
+			}
+			
+			Math.encoderTicksToPixels = function(encoderTicks) 
+			{
+				return Math.inchesToPixels(Math.encoderTicksToInches(encoderTicks));
+			}
+		</script>
+	</body>
+</html>
